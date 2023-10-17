@@ -111,7 +111,7 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
 
           final sourceType = mapperType.typeArguments[0];
           final targetType = mapperType.typeArguments[1];
-          final targetAdditionalType = mapper.runtimeType.toString() == 'MapType2' ? mapperType.typeArguments[2] : null;
+          final targetAdditionalType = mapper.runtimeType.toString().startsWith('MapType2') ? mapperType.typeArguments[2] : null;
 
           if (sourceType is! InterfaceType) {
             final emittedSource = EmitterHelper.current.typeReferEmitted(type: sourceType);
