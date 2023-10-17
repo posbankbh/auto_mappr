@@ -108,7 +108,6 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
     return mappers
         .map((mapper) {
           final mapperType = mapper.type! as ParameterizedType;
-          print(mapper.type);
 
           final sourceType = mapperType.typeArguments[0];
           final targetType = mapperType.typeArguments[1];
