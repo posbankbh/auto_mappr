@@ -72,8 +72,7 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
       final includesList = constant.getField(annotationFieldIncludes)?.toListValue() ?? <DartObject>[];
 
       final allMappers = [...mappersList, ..._mappersFromRecursiveIncludes(includesList: includesList)];
-      final allConverters =
-          _toTypeConverters([...convertersList, ..._convertersFromRecursiveIncludes(includesList: includesList)]);
+      final allConverters = _toTypeConverters([...convertersList, ..._convertersFromRecursiveIncludes(includesList: includesList)]);
       final mappers = _processMappers(mappers: allMappers, globalConverters: allConverters, element: element);
 
       final duplicates = mappers.duplicates;
@@ -110,8 +109,9 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
         .map((mapper) {
           final mapperType = mapper.type! as ParameterizedType;
 
-          final sourceType = mapperType.typeArguments.firstOrNull;
-          final targetType = mapperType.typeArguments.lastOrNull;
+          final sourceType = mapperType.typeArguments[0];
+          final targetType = mapperType.typeArguments[1];
+          final targetAdditionalType = mapper.runtimeType.toString() == 'MapType2' ? mapperType.typeArguments[2] : null;
 
           if (sourceType is! InterfaceType) {
             final emittedSource = EmitterHelper.current.typeReferEmitted(type: sourceType);
@@ -124,6 +124,16 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
           }
           if (targetType is! InterfaceType) {
             final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetType);
+
+            throw InvalidGenerationSourceError(
+              '$emittedTarget is not a class and cannot be mapped to',
+              element: element,
+              todo: 'Use a class',
+            );
+          }
+
+          if (targetAdditionalType != null && targetAdditionalType is! InterfaceType) {
+            final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetAdditionalType);
 
             throw InvalidGenerationSourceError(
               '$emittedTarget is not a class and cannot be mapped to',
@@ -172,6 +182,27 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
                 constructor: constructor,
                 ignoreFieldNull: ignoreFieldNull,
               ),
+            if (targetAdditionalType != null) ...[
+              TypeMapping(
+                source: sourceType,
+                target: targetAdditionalType as InterfaceType,
+                fieldMappings: fieldMappings ?? [],
+                typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
+                whenSourceIsNullExpression: whenSourceIsNull,
+                constructor: constructor,
+                ignoreFieldNull: ignoreFieldNull,
+              ),
+              if (reverse ?? false)
+                TypeMapping(
+                  source: targetAdditionalType,
+                  target: sourceType,
+                  fieldMappings: fieldMappings ?? [],
+                  typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
+                  whenSourceIsNullExpression: whenSourceIsNull,
+                  constructor: constructor,
+                  ignoreFieldNull: ignoreFieldNull,
+                ),
+            ],
           ];
         })
         .flattened
