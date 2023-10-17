@@ -13,7 +13,11 @@ environment:
 dependencies:
   # TODO: Support analyzer same way as json_serializable https://github.com/google/json_serializable.dart/pull/1333
   analyzer: ">=5.4.0 <7.0.0"
-  auto_mappr_annotation: ^2.1.0
+  auto_mappr_annotation: 
+    git:
+      url: https://github.com/posbankbh/auto_mappr.git
+      path: packages/auto_mappr_annotation
+      ref: main
   build: ^2.3.1
   built_collection: ^5.1.1
   code_builder: ^4.4.0
