@@ -109,64 +109,83 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
         .map((mapper) {
           final mapperType = mapper.type! as ParameterizedType;
 
-          try {
-            final sourceType = mapperType.typeArguments[0];
-            final targetType = mapperType.typeArguments[1];
-            final targetAdditionalType = mapper.type.toString().startsWith('MapType2') ? mapperType.typeArguments[2] : null;
+          final sourceType = mapperType.typeArguments[0];
+          final targetType = mapperType.typeArguments[1];
+          final targetAdditionalType = mapper.type.toString().startsWith('MapType2') ? mapperType.typeArguments[2] : null;
 
-            if (sourceType is! InterfaceType) {
-              final emittedSource = EmitterHelper.current.typeReferEmitted(type: sourceType);
+          if (sourceType is! InterfaceType) {
+            final emittedSource = EmitterHelper.current.typeReferEmitted(type: sourceType);
 
-              throw InvalidGenerationSourceError(
-                '$emittedSource is not a class and cannot be mapped from',
-                element: element,
-                todo: 'Use a class',
-              );
-            }
-            if (targetType is! InterfaceType) {
-              final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetType);
+            throw InvalidGenerationSourceError(
+              '$emittedSource is not a class and cannot be mapped from',
+              element: element,
+              todo: 'Use a class',
+            );
+          }
+          if (targetType is! InterfaceType) {
+            final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetType);
 
-              throw InvalidGenerationSourceError(
-                '$emittedTarget is not a class and cannot be mapped to',
-                element: element,
-                todo: 'Use a class',
-              );
-            }
+            throw InvalidGenerationSourceError(
+              '$emittedTarget is not a class and cannot be mapped to',
+              element: element,
+              todo: 'Use a class',
+            );
+          }
 
-            if (targetAdditionalType != null && targetAdditionalType is! InterfaceType) {
-              final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetAdditionalType);
+          if (targetAdditionalType != null && targetAdditionalType is! InterfaceType) {
+            final emittedTarget = EmitterHelper.current.typeReferEmitted(type: targetAdditionalType);
 
-              throw InvalidGenerationSourceError(
-                '$emittedTarget is not a class and cannot be mapped to',
-                element: element,
-                todo: 'Use a class',
-              );
-            }
+            throw InvalidGenerationSourceError(
+              '$emittedTarget is not a class and cannot be mapped to',
+              element: element,
+              todo: 'Use a class',
+            );
+          }
 
-            final fields = mapper.getField(mapTypeFieldFields)?.toListValue();
-            final mapTypeConverters = mapper.getField(mapTypeFieldConverters)?.toListValue() ?? [];
-            final whenSourceIsNull = mapper.getField(mapTypeFieldWhenSourceIsNull)?.toCodeExpression();
-            final constructor = mapper.getField(mapTypeFieldConstructor)?.toStringValue();
-            final ignoreFieldNull = mapper.getField(mapTypeFieldIgnoreFieldNull)?.toBoolValue();
-            final reverse = mapper.getField(mapTypeFieldReverse)?.toBoolValue();
+          final fields = mapper.getField(mapTypeFieldFields)?.toListValue();
+          final mapTypeConverters = mapper.getField(mapTypeFieldConverters)?.toListValue() ?? [];
+          final whenSourceIsNull = mapper.getField(mapTypeFieldWhenSourceIsNull)?.toCodeExpression();
+          final constructor = mapper.getField(mapTypeFieldConstructor)?.toStringValue();
+          final ignoreFieldNull = mapper.getField(mapTypeFieldIgnoreFieldNull)?.toBoolValue();
+          final reverse = mapper.getField(mapTypeFieldReverse)?.toBoolValue();
 
-            final fieldMappings = fields
-                ?.map(
-                  (fieldMapping) => FieldMapping(
-                    field: fieldMapping.getField(fieldFieldField)!.toStringValue()!,
-                    ignore: fieldMapping.getField(fieldFieldIgnore)!.toBoolValue()!,
-                    from: fieldMapping.getField(fieldFieldFrom)!.toStringValue(),
-                    customExpression: fieldMapping.getField(fieldFieldCustom)!.toCodeExpression(passModelArgument: true),
-                    whenNullExpression: fieldMapping.getField(fieldFieldWhenNull)!.toCodeExpression(),
-                    ignoreNull: fieldMapping.getField(fieldFieldIgnoreNull)!.toBoolValue(),
-                  ),
-                )
-                .toList();
+          final fieldMappings = fields
+              ?.map(
+                (fieldMapping) => FieldMapping(
+                  field: fieldMapping.getField(fieldFieldField)!.toStringValue()!,
+                  ignore: fieldMapping.getField(fieldFieldIgnore)!.toBoolValue()!,
+                  from: fieldMapping.getField(fieldFieldFrom)!.toStringValue(),
+                  customExpression: fieldMapping.getField(fieldFieldCustom)!.toCodeExpression(passModelArgument: true),
+                  whenNullExpression: fieldMapping.getField(fieldFieldWhenNull)!.toCodeExpression(),
+                  ignoreNull: fieldMapping.getField(fieldFieldIgnoreNull)!.toBoolValue(),
+                ),
+              )
+              .toList();
 
-            return [
+          return [
+            TypeMapping(
+              source: sourceType,
+              target: targetType,
+              fieldMappings: fieldMappings ?? [],
+              typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
+              whenSourceIsNullExpression: whenSourceIsNull,
+              constructor: constructor,
+              ignoreFieldNull: ignoreFieldNull,
+            ),
+            if (reverse ?? false)
+              TypeMapping(
+                source: targetType,
+                target: sourceType,
+                fieldMappings: fieldMappings ?? [],
+                typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
+                whenSourceIsNullExpression: whenSourceIsNull,
+                constructor: constructor,
+                ignoreFieldNull: ignoreFieldNull,
+              ),
+            if (targetAdditionalType != null) ...[
               TypeMapping(
                 source: sourceType,
-                target: targetType,
+                target: targetAdditionalType as InterfaceType,
                 fieldMappings: fieldMappings ?? [],
                 typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
                 whenSourceIsNullExpression: whenSourceIsNull,
@@ -175,7 +194,7 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
               ),
               if (reverse ?? false)
                 TypeMapping(
-                  source: targetType,
+                  source: targetAdditionalType,
                   target: sourceType,
                   fieldMappings: fieldMappings ?? [],
                   typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
@@ -183,34 +202,8 @@ class AutoMapprGenerator extends GeneratorForAnnotation<annotation.AutoMappr> {
                   constructor: constructor,
                   ignoreFieldNull: ignoreFieldNull,
                 ),
-              if (targetAdditionalType != null) ...[
-                TypeMapping(
-                  source: sourceType,
-                  target: targetAdditionalType as InterfaceType,
-                  fieldMappings: fieldMappings ?? [],
-                  typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
-                  whenSourceIsNullExpression: whenSourceIsNull,
-                  constructor: constructor,
-                  ignoreFieldNull: ignoreFieldNull,
-                ),
-                if (reverse ?? false)
-                  TypeMapping(
-                    source: targetAdditionalType,
-                    target: sourceType,
-                    fieldMappings: fieldMappings ?? [],
-                    typeConverters: [..._toTypeConverters(mapTypeConverters), ...globalConverters],
-                    whenSourceIsNullExpression: whenSourceIsNull,
-                    constructor: constructor,
-                    ignoreFieldNull: ignoreFieldNull,
-                  ),
-              ],
-            ];
-          } on Exception catch (ex) {
-            final mapperType = mapper.type! as ParameterizedType;
-            print(ex);
-            print(mapperType);
-            rethrow;
-          }
+            ],
+          ];
         })
         .flattened
         .toList();
